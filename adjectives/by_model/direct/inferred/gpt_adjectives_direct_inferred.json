@@ -1,0 +1,15 @@
+[
+    {
+        "word":"forceful",
+        "total_count":3,
+        "majority_upos":"ADJ",
+        "majority_count":3,
+        "majority_model":"gpt",
+        "majority_model_count":1,
+        "model_freqs":{
+            "gpt":1,
+            "gpt-5":1,
+            "gpt-4o":1
+        }
+    }
+]
