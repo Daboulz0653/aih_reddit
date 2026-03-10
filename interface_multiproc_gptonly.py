@@ -16,21 +16,22 @@ import nltk
 nltk.download('punkt_tab')
 from nltk.tokenize import sent_tokenize
 import re
+import queue
 
 
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 sys.setrecursionlimit(10000)  # Add this line
 
 
-INPUT = "raw_data/reddit_mini_corpus.ndjson"
-OUTPUT = "entweetewt/big_corpus/big_corpus_final_cleaned_with_deps.ndjson"
+INPUT = "raw_data/big_corpus_final.ndjson"
+OUTPUT = "entweetewt/big_corpus/big_corpus_final_cleaned_with_deps2.ndjson"
 IDFILE = "processed_ids.txt"
 SKIPPEDFILE = "skipped_ids.txt"
 
 TOTAL_ENTRIES = 1098440
 BATCH_SIZE = 16
 MAX_CHARS = 8000
-DO_NOT_PROCESS = 30000
+DO_NOT_PROCESS = 20000
 
 
 #can be set to NONE, GPT or EXTRA
@@ -39,13 +40,15 @@ KEYWORD = "GPT"
 S = r"[- ]?"
 MODEL_PATTERNS = {
     # 1. Specific Versions First (to prevent GPT-4 from 'eating' GPT-4o)
-    "gpt-4o": re.compile(rf"\b(?:chat{S})?gpt{S}4o\S*", re.IGNORECASE),
+    #"gpt-4o": re.compile(rf"\b(?:chat{S})?gpt{S}4o\S*", re.IGNORECASE),
+    "gpt-4o": re.compile(rf"\b(?:chat{S})?gpt{S}4{S}(?:o(?:{S}mini)?|omni)\b", re.IGNORECASE),
     "gpt-4.5": re.compile(rf"\b(?:chat{S})?gpt{S}4\.5\S*", re.IGNORECASE),
     "gpt-4.1": re.compile(rf"\b(?:chat{S})?gpt{S}4\.1\S*", re.IGNORECASE),
     "gpt-4-turbo": re.compile(rf"\b(?:chat{S})?gpt{S}4{S}turbo\S*", re.IGNORECASE),
 
     # 2. GPT-4 (The Negative Lookahead ensures it ignores 4o, 4.5, etc.)
-    "gpt-4": re.compile(rf"\b(?:chat{S})?gpt{S}4(?![o\.0-9]|{S}turbo)\S*", re.IGNORECASE),
+    "gpt-4": re.compile(rf"\b(?:chat{S})?gpt{S}4(?![o\.0-9]|{S}turbo|{S}omni)\b", re.IGNORECASE),
+    #"gpt-4": re.compile(rf"\b(?:chat{S})?gpt{S}4(?![o\.0-9]|{S}turbo)\S*", re.IGNORECASE),
 
     # 3. Other Versions
     "gpt-3.5": re.compile(rf"\b(?:chat{S})?gpt{S}3\.5\S*", re.IGNORECASE),
@@ -112,7 +115,7 @@ def serialize(doc):
                 'xpos': word.xpos,
                 'deprel': word.deprel,  # dependency relation,
                 'feats':word.feats,
-                'head_idx': word.head, 
+                'head_id': word.head, 
                 'id': word.id,  
                 'children': [child.id for child in sentence.words if child.head == word.id],  # indices of children
                 'sent_id': sent_id
@@ -121,51 +124,6 @@ def serialize(doc):
 
     return tree
 
-#do I need this for stanza? what is the purpose of this
-def compact_structure(doc) -> Dict:
-    sentences_triples = []
-
-    for sent in doc.sentences:
-        triples = []
-        # root_indices = []
-
-        for head, rel, dep in sent.dependencies:
-            # if rel.lower() == "root" or dep.head == 0:
-            #     root_indices.append(dep.id)
-            #     continue
-
-            triples.append({
-                "head": head.id,
-                "head_text": head.text,
-                "rel": rel,
-                "dep": dep.id,
-                "dep_text": dep.text
-            })
-
-        sentences_triples.append(triples)
-        # root_indices_per_sentence.append(root_indices)
-
-    return  sentences_triples
-
-def check_gpu_memory(gpu_id=0, threshold=0.85):
-    """Check GPU memory and return usage percentage"""
-    if not torch.cuda.is_available():
-        return 0.0
-    
-    memory_allocated = torch.cuda.memory_allocated(gpu_id)
-    memory_total = torch.cuda.get_device_properties(gpu_id).total_memory
-    usage_pct = memory_allocated / memory_total
-    
-    if usage_pct > threshold:
-        tqdm.write(f"GPU {gpu_id} memory: {usage_pct:.1%} (allocated: {memory_allocated/1e9:.2f}GB / {memory_total/1e9:.2f}GB)")
-        gc.collect()
-        torch.cuda.empty_cache()
-        # Check again after cleanup
-        memory_allocated = torch.cuda.memory_allocated(gpu_id)
-        usage_pct = memory_allocated / memory_total
-        tqdm.write(f"GPU {gpu_id} after cleanup: {usage_pct:.1%}")
-    
-    return usage_pct
 
 def gpu_worker(gpu_id, input_queue, output_queue):
     
@@ -187,11 +145,6 @@ def gpu_worker(gpu_id, input_queue, output_queue):
                 batch_idx, texts = item
                 batch_count += 1
                 
-                # Only check memory occasionally
-                #if batch_count % 20 == 0:
-                 #   check_gpu_memory(0, threshold=0.85)
-                
-                # Light cleanup
                 if batch_count % 50 == 0:
                     gc.collect()
                     torch.cuda.empty_cache()
@@ -279,16 +232,13 @@ def write_batch(raw, res, io):
 
 #tokenizes by sentences, find sentences that mention model words specified by KEYWORD
 #output --> sentences delineated by \n\n as desired by Stanza pipeline
-def model_sentences(text, keyword):
+def model_sentences(sentences, keyword):
     if keyword == "NONE":
         return text
     elif keyword not in ["GPT", "EXTRA"]:
         tqdm.write("keyword chosen not allowed, defaulted to gpt only")
     
-    sentences = sent_tokenize(text)
-
-    sentences = [sent.replace('\n', ' ').replace('\r', ' ') for sent in sentences]
-    matched = [s for s in sentences if any(pattern.search(s) for pattern in MODEL_PATTERNS.values())]
+    matched = [s for s in sentences if any(token in s for token in ["GPT", "CHATGPT"])]
 
     if keyword == "EXTRA": 
         entry_has_excluded = any(pattern.search(s) for s in sentences for pattern in MODELS_TO_EXCLUDE.values())
@@ -302,8 +252,10 @@ def model_sentences(text, keyword):
 
 #standerdizes quotation marks and removes single quotes
 def clean(text):
-    text = re.sub(r"['‘’`´]", "", text)
+    text = re.sub(r"['''`´]", "'", text)
     text = re.sub(r'["“”„‟«»＂]', '"', text)
+    text = re.sub(r'[*#_~\\/|]', ' ', text)
+    text = re.sub(r"'s", " 's", text)
     text  = " ".join(text.split())
     return text
 
@@ -312,9 +264,8 @@ def clean(text):
 # chatgpt, chat Gpt ------> CHATGPT
 def normalize_model_names(text):
     for model_name, pattern in MODEL_PATTERNS.items():
-        for model_found in pattern.findall(text):
-            clean_name = model_found.replace(" ", "").replace("-","").replace(".","").upper()
-            text = text.replace(model_found, clean_name)
+        clean_func = lambda m: m.group(0).replace(" ", "").replace("-", "").replace("_", "").upper()
+        text = pattern.sub(clean_func, text)
     return text
 
 
@@ -334,6 +285,7 @@ def main():
     workers = []
     for gpu_id in [0, 1]:
         p = Process(target=gpu_worker, args=(gpu_id, input_queue, output_queue))
+        p.daemon = True
         p.start()
         workers.append(p)
 
@@ -387,13 +339,18 @@ def main():
                     
 
                     #removing some puncts, lowering, and normalizing model name
-                    text = text.lower()
-                    text = clean(text)
-                    text = normalize_model_names(text)
-                    entry["cleaned_text"] = text
-                    
                     #getting sentences with only models/words specified by KEYWORD, returned as \n\n separated sentences
-                    text = model_sentences(text, KEYWORD)
+                    sentences = sent_tokenize(text)
+                    sentences = [s.replace('\n', ' ').replace('\t', ' ') for s in sentences]
+                    sentences = [normalize_model_names(clean(s.lower())) for s in sentences]
+                    entry["cleaned_text"] = ' '.join(sentences)
+                    text = model_sentences(sentences, KEYWORD)
+
+                    #shouldn't really do anything if scraping. this is if no matched sentences are returned 
+                    if not text.strip():
+                        io['failedfile'].write(json.dumps(entry) + '\n')
+                        skipped += 1
+                        continue
 
                     
                     #length check to not overload processor with large texts/batches
@@ -464,7 +421,8 @@ def main():
 
 
 
-    tqdm.write(f"errors: {errors:,}")
+    tqdm.write(f"errors: {errors}")
+    tqdm.write(f"lower bound on skipped: {skipped}")
     tqdm.write(f"total entries processed: {progress_bar.n}")
     tqdm.write(f"output saved to: {OUTPUT}")
 
