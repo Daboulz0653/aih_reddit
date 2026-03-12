@@ -24,9 +24,9 @@ sys.setrecursionlimit(10000)  # Add this line
 
 
 INPUT = "raw_data/big_corpus_final.ndjson"
-OUTPUT = "entweetewt/big_corpus/big_corpus_final_cleaned_with_deps2.ndjson"
+OUTPUT = "entweetewt/big_corpus/big_corpus_final_cleaned_with_deps_newregex5.ndjson"
 IDFILE = "processed_ids.txt"
-SKIPPEDFILE = "skipped_ids.txt"
+SKIPPEDFILE = "skipped_entries5.ndjson"
 
 TOTAL_ENTRIES = 1098440
 BATCH_SIZE = 16
@@ -36,28 +36,89 @@ DO_NOT_PROCESS = 20000
 
 #can be set to NONE, GPT or EXTRA
 KEYWORD = "GPT"
+SUFFIX = r"(?:[-\s]?(?:turbo|mini|nano|preview|vision|audio|realtime|instruct))*"
 
-S = r"[- ]?"
+VERSION = r"(?:3(?:\.5)?|4(?:\.1|\.5|o)?|5)"
+
+#END = r"(?=$|\s|[.,!?;:](?=\s|$))"
+END = r"(?:'s)?(?=$|\s|[.,!?;:](?=\s|$))"
+
 MODEL_PATTERNS = {
-    # 1. Specific Versions First (to prevent GPT-4 from 'eating' GPT-4o)
-    #"gpt-4o": re.compile(rf"\b(?:chat{S})?gpt{S}4o\S*", re.IGNORECASE),
-    "gpt-4o": re.compile(rf"\b(?:chat{S})?gpt{S}4{S}(?:o(?:{S}mini)?|omni)\b", re.IGNORECASE),
-    "gpt-4.5": re.compile(rf"\b(?:chat{S})?gpt{S}4\.5\S*", re.IGNORECASE),
-    "gpt-4.1": re.compile(rf"\b(?:chat{S})?gpt{S}4\.1\S*", re.IGNORECASE),
-    "gpt-4-turbo": re.compile(rf"\b(?:chat{S})?gpt{S}4{S}turbo\S*", re.IGNORECASE),
+    "gpt-4o": re.compile(rf"\bgpt[-\s]?4o{SUFFIX}{END}", re.IGNORECASE),
+    "gpt-4.5": re.compile(rf"\bgpt[-\s]?4\.5{SUFFIX}{END}", re.IGNORECASE),
+    "gpt-4.1": re.compile(rf"\bgpt[-\s]?4\.1{SUFFIX}{END}", re.IGNORECASE),
+    "gpt-4": re.compile(rf"\bgpt[-\s]?4{SUFFIX}{END}", re.IGNORECASE),
+    "gpt-3.5": re.compile(rf"\bgpt[-\s]?3\.?5{SUFFIX}{END}", re.IGNORECASE),
+    "gpt-5": re.compile(rf"\bgpt[-\s]?5{SUFFIX}{END}", re.IGNORECASE),
 
-    # 2. GPT-4 (The Negative Lookahead ensures it ignores 4o, 4.5, etc.)
-    "gpt-4": re.compile(rf"\b(?:chat{S})?gpt{S}4(?![o\.0-9]|{S}turbo|{S}omni)\b", re.IGNORECASE),
-    #"gpt-4": re.compile(rf"\b(?:chat{S})?gpt{S}4(?![o\.0-9]|{S}turbo)\S*", re.IGNORECASE),
+    "chatgpt": re.compile(
+        rf"\bchat[-\s]?gpt(?:[-\s]?{VERSION})?{SUFFIX}{END}",
+        re.IGNORECASE
+    ),
 
-    # 3. Other Versions
-    "gpt-3.5": re.compile(rf"\b(?:chat{S})?gpt{S}3\.5\S*", re.IGNORECASE),
-    "gpt-5": re.compile(rf"\b(?:chat{S})?gpt{S}5\S*", re.IGNORECASE),
-
-    # 4. Generics Last
-    "chatgpt": re.compile(r"\bchat[\s-]?gpt\S*", re.IGNORECASE),
-    "gpt": re.compile(r"\bgpt\S*", re.IGNORECASE),
+    "gpt": re.compile(
+        rf"\bgpt(?:[-\s]?{VERSION})?{SUFFIX}{END}",
+        re.IGNORECASE
+    ),
 }
+#SUFFIX = r"(?:[-\s]?(?:turbo|mini|nano|preview|vision|audio|realtime|instruct))*"
+#END = r"(?![a-z0-9\.])"
+#END = r"(?=[\s]*[\.!?]?[\s]*$|[\s])"
+
+#
+#MODEL_PATTERNS = {
+#    "gpt-4o": re.compile(rf"\bgpt[-\s]?4o{SUFFIX}{END}", re.IGNORECASE),
+#    "gpt-4.5": re.compile(rf"\bgpt[-\s]?4\.5{SUFFIX}{END}", re.IGNORECASE),
+#    "gpt-4.1": re.compile(rf"\bgpt[-\s]?4\.1{SUFFIX}{END}", re.IGNORECASE),
+#    "gpt-4": re.compile(rf"\bgpt[-\s]?4{SUFFIX}{END}", re.IGNORECASE),
+#    "gpt-3.5": re.compile(rf"\bgpt[-\s]?3\.?5{SUFFIX}{END}", re.IGNORECASE),
+#    "gpt-5": re.compile(rf"\bgpt[-\s]?5{SUFFIX}{END}", re.IGNORECASE),
+#    "chatgpt": re.compile(rf"\bchat[-\s]?gpt{SUFFIX}{END}", re.IGNORECASE),
+#    "gpt": re.compile(rf"\bgpt{SUFFIX}{END}", re.IGNORECASE),
+#}
+
+#MODEL_PATTERNS = {
+#    "gpt-4o": re.compile(rf"\bgpt[-\s]?4o{SUFFIX}{END}", re.IGNORECASE),
+#    "gpt-4.5": re.compile(rf"\bgpt[-\s]?4\.5{SUFFIX}{END}", re.IGNORECASE),
+#    "gpt-4.1": re.compile(rf"\bgpt[-\s]?4\.1{SUFFIX}{END}", re.IGNORECASE),
+#    "gpt-4": re.compile(rf"\bgpt[-\s]?4{SUFFIX}{END}", re.IGNORECASE),
+#    "gpt-3.5": re.compile(rf"\bgpt[-\s]?3\.?5{SUFFIX}{END}", re.IGNORECASE),
+#    "gpt-5": re.compile(rf"\bgpt[-\s]?5{SUFFIX}{END}", re.IGNORECASE),
+#    "chatgpt": re.compile(rf"\bchat[-\s]?gpt{SUFFIX}{END}", re.IGNORECASE),
+ #   "gpt": re.compile(rf"\bgpt{SUFFIX}{END}", re.IGNORECASE),
+#    "chatgpt": re.compile(
+#        rf"\bchat[-\s]?gpt(?:[-\s]?([345]|4\.5|4\.1|4o|5))?{SUFFIX}{END}",
+#        re.IGNORECASE
+#    ),
+
+    # Generic GPT catch-all (with optional version)
+#    "gpt": re.compile(
+#        rf"\bgpt(?:[-\s]?([345]|4\.5|4\.1|4o|5))?{SUFFIX}{END}",
+#        re.IGNORECASE
+#    ),
+#}
+
+#S = r"[- ]?"
+#MODEL_PATTERNS = {
+#    # 1. Specific Versions First (to prevent GPT-4 from 'eating' GPT-4o)
+#   # "gpt-4o": re.compile(rf"\b(?:chat{S})?gpt{S}4o\S*", re.IGNORECASE),
+#    "gpt-4o": re.compile(rf"\b(?:chat{S})?gpt{S}4{S}(?:o(?:{S}mini)?|omni)\b", re.IGNORECASE),
+#    "gpt-4.5": re.compile(rf"\b(?:chat{S})?gpt{S}4\.5\S*", re.IGNORECASE),
+#    "gpt-4.1": re.compile(rf"\b(?:chat{S})?gpt{S}4\.1\S*", re.IGNORECASE),
+#    "gpt-4-turbo": re.compile(rf"\b(?:chat{S})?gpt{S}4{S}turbo\S*", re.IGNORECASE),
+#
+#    # 2. GPT-4 (The Negative Lookahead ensures it ignores 4o, 4.5, etc.)
+#    "gpt-4": re.compile(rf"\b(?:chat{S})?gpt{S}4(?![o\.0-9]|{S}turbo|{S}omni)\b", re.IGNORECASE),
+#    #"gpt-4": re.compile(rf"\b(?:chat{S})?gpt{S}4(?![o\.0-9]|{S}turbo)\S*", re.IGNORECASE),
+#
+#    # 3. Other Versions
+#    "gpt-3.5": re.compile(rf"\b(?:chat{S})?gpt{S}3\.5\S*", re.IGNORECASE),
+#    "gpt-5": re.compile(rf"\b(?:chat{S})?gpt{S}5\S*", re.IGNORECASE),
+#
+#    # 4. Generics Last
+#    "chatgpt": re.compile(r"\bchat[\s-]?gpt\S*", re.IGNORECASE),
+#    "gpt": re.compile(r"\bgpt\S*", re.IGNORECASE),
+#}
 
 EXTRA_PATTERNS = {
     "model": re.compile(r"^gpt$", re.IGNORECASE),
@@ -234,7 +295,7 @@ def write_batch(raw, res, io):
 #output --> sentences delineated by \n\n as desired by Stanza pipeline
 def model_sentences(sentences, keyword):
     if keyword == "NONE":
-        return text
+        return "\n\n".join(sentences)
     elif keyword not in ["GPT", "EXTRA"]:
         tqdm.write("keyword chosen not allowed, defaulted to gpt only")
     
@@ -252,12 +313,29 @@ def model_sentences(sentences, keyword):
 
 #standerdizes quotation marks and removes single quotes
 def clean(text):
-    text = re.sub(r"['''`´]", "'", text)
+    #weird utf8 chars
+    text = re.sub(r'[\u2011\u2012\u2013\u2014\u2015\u2212]', ' ', text)
+    text = re.sub(r'[\u2022\u2023\u2026\u2030\u2031]', ' ', text)
+    text = re.sub(r'[\u060c\u061b\u061f\u3001\u3002\u300c\u300d\uff01\uff0c\uff1a\uff1b\uff1f]', ' ', text)
+    
+    #normalizing double and single quotes
+    text = re.sub(r"[\'`´‘’‚‛′‵ʻʼʹ]", "'", text)
     text = re.sub(r'["“”„‟«»＂]', '"', text)
+    
+    #removing other meaningless symbols
     text = re.sub(r'[*#_~\\/|]', ' ', text)
+    
+    #normalizng ellipses and repeating characters
+    #text = re.sub(r'([.!?,;:()"\'])', r' \1 ', text)
+    #text = re.sub(r'([!?,;:()"])', r' \1 ', text)
+    #padding brackets, etc... to allow for match
+    #text = re.sub(r'([()\[\]{}"\'`])', r' \1 ', text)
+    text = re.sub(r'([!?,;:()\[\]{}"])', r' \1 ', text)
+
     text = re.sub(r"'s", " 's", text)
     text  = " ".join(text.split())
     return text
+
 
 #normalizes spelling of model names
 # gpt 5, gpt-5, GPT5, gpt5 -------> GPT5
