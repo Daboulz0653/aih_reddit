@@ -103,7 +103,7 @@ What does it actually do?
 
 It outputs two ndjsons:
 
-allposbreakdown.ndjson
+allposbreakdown.ndjson : includes all POS tags the word appeared as
 
 ```json
 {"word": "word", 
@@ -114,14 +114,15 @@ allposbreakdown.ndjson
             "gpt-4o": 0, 
             "gpt-5": 0}}
 ```
-mostfreq.ndjson
+mostfreq.ndjson : find majority pos, majority model
 
 ```json
 {"word": "word", 
 "total_count": 0, 
 "majority_upos": "NOUN", 
 "majority_count": 0, 
-"majority_model": "chatgpt", "majority_model_count": 0, 
+"majority_model": "chatgpt",
+"majority_model_count": 0, 
 "model_freqs": {"gpt-3.5": 0, 
                 "chatgpt": 0, 
                 "gpt-4": 0, 
