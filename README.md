@@ -49,10 +49,10 @@ Entries are output as is with 2 extra fields:
   "full_link": "",
   "models_detected": ["gpt"],
   "model_inferred_temporal": ["gpt-3.5"],
-  "cleaned_text": "", #text after its cleaned
+  "cleaned_text": "",       //text after its cleaned
   "dependency_parse": {
-    "usable_text": "", #sentences with model mentions, delineated by '\n\n' per stanza guidelines
-    "full_tree": null, #dependency parse
+    "usable_text": "",      //sentences with model mentions, delineated by '\n\n' per stanza guidelines
+    "full_tree": null,      //dependency parse
     "num_tokens": 0,
     "num_words": 0,
     "num_sentences": 0
@@ -111,8 +111,8 @@ allposbreakdown.ndjson
             "NOUN": 0 },
 "models": { "gpt-3.5": 0, 
             "gpt-4": 0, 
-            "gpt-4o": 0, "
-            gpt-5": 0}}
+            "gpt-4o": 0, 
+            "gpt-5": 0}}
 ```
 mostfreq.ndjson
 
