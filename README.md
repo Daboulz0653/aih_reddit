@@ -13,7 +13,7 @@ There are two major scripts that drive this pipeline, and small scripts that wer
 
 #### Generates dependency parses for each entry
 
-Using TweebankNLP's pipeline for social media language, this script processes the entries in four different ways: Tokenization, Lemmatization, POS tagging, and Dependency Parsing. 
+Using [TweebankNLP's](https://github.com/mit-ccc/TweebankNLP) pipeline for social media language (with some minor changes), this script processes the entries in four different ways: Tokenization, Lemmatization, POS tagging, and Dependency Parsing. 
 
 What does it actually do?
 
